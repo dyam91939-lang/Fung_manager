@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>资产及负债明细管理系统</title>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: #f5f7fa;
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--dark) 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .user-management {
+            background: var(--light);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        input, select, button {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }
+        
+        .btn-danger { background: var(--danger); }
+        .btn-success { background: var(--secondary); }
+        
+        .main-content {
+            display: flex;
+            min-height: 500px;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background: var(--dark);
+            color: white;
+            padding: 20px;
+        }
+        
+        .asset-category {
+            margin-bottom: 20px;
+        }
+        
+        .asset-category h3 {
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 5px;
+        }
+        
+        .subcategory-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .subcategory-item:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .subcategory-item.active {
+            background: var(--primary);
+        }
+        
+        .content-area {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+        }
+        
+        .section-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        
+        .data-table th, .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background: var(--dark);
+            color: white;
+        }
+        
+        .data-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .summary-card {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .summary-card h4 {
+            margin-bottom: 10px;
+            color: var(--dark);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+            }
+            
+            .user-management {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            background: var(--secondary);
+            color: white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>资产及负债明细管理系统</h1>
+        </header>
+        
+        <div class="user-management">
+            <div>
+                <h3>当前用户: <span id="currentUserName">未选择用户</span></h3>
+            </div>
+            <div>
+                <input type="text" id="userName" placeholder="输入新用户名">
+                <button id="addUserBtn">添加用户</button>
+                <select id="userSelect"></select>
+                <button id="switchUserBtn">切换用户</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="asset-category">
+                    <h3>银行卡定期</h3>
+                    <div class="subcategory-item active" data-category="bank定期" data-subcategory="建设银行">建设银行</div>
+                    <div class="subcategory-item" data-category="bank定期" data-subcategory="工商银行">工商银行</div>
+                    <div class="subcategory-item" data-category="bank定期" data-subcategory="招商银行">招商银行</div>
+                    <div class="subcategory-item" data-category="bank定期" data-subcategory="农业银行">农业银行</div>
+                    <div class="subcategory-item" data-category="bank定期" data-subcategory="支付宝定期">支付宝定期</div>
+                </div>
+                
+                <div class="asset-category">
+                    <h3>小荷包</h3>
+                    <div class="subcategory-item" data-category="小荷包" data-subcategory="10%存">10%存</div>
+                    <div class="subcategory-item" data-category="小荷包" data-subcategory="10%心">10%心</div>
+                </div>
+                
+                <div class="asset-category">
+                    <h3>零钱</h3>
+                    <div class="subcategory-item" data-category="零钱" data-subcategory="微信零钱">微信零钱</div>
+                    <div class="subcategory-item" data-category="零钱" data-subcategory="支付宝零钱">支付宝零钱</div>
+                    <div class="subcategory-item" data-category="零钱" data-subcategory="建设银行">建设银行</div>
+                    <div class="subcategory-item" data-category="零钱" data-subcategory="工商银行">工商银行</div>
+                    <div class="subcategory-item" data-category="零钱" data-subcategory="招商银行">招商银行</div>
+                    <div class="subcategory-item" data-category="零钱" data-subcategory="农业银行">农业银行</div>
+                    <div class="subcategory-item" data-category="零钱" data-subcategory="运动账户">运动账户</div>
+                </div>
+                
+                <div class="asset-category">
+                    <h3>2500-开支</h3>
+                    <div class="subcategory-item" data-category="2500开支" data-subcategory="月结余">月结余</div>
+                </div>
+                
+                <div class="asset-category">
+                    <h3>其他</h3>
+                    <div class="subcategory-item" data-category="其他" data-subcategory="家">家</div>
+                    <div class="subcategory-item" data-category="其他" data-subcategory="宋">宋</div>
+                </div>
+            </div>
+            
+            <div class="content-area">
+                <div class="section-card">
+                    <h3>查找数据</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>年份</label>
+                            <select id="searchYear">
+                                <option value="">所有年份</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>月份</label>
+                            <select id="searchMonth">
+                                <option value="">所有月份</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>大类</label>
+                            <select id="searchCategory">
+                                <option value="">所有大类</option>
+                                <option value="bank定期">银行卡定期</option>
+                                <option value="小荷包">小荷包</option>
+                                <option value="零钱">零钱</option>
+                                <option value="2500开支">2500-开支</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>小类</label>
+                            <select id="searchSubcategory">
+                                <option value="">所有小类</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="searchBtn">查找</button>
+                    <button id="resetSearchBtn" class="btn-danger">重置</button>
+                </div>
+                
+                <div class="section-card">
+                    <h3>添加记录 - <span id="selectedCategory">建设银行</span></h3>
+                    <div class="form-group">
+                        <label>选择用户</label>
+                        <select id="recordUser">
+                            <option value="">请选择用户</option>
+                        </select>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>月份</label>
+                            <input type="month" id="recordMonth">
+                        </div>
+                        <div class="form-group">
+                            <label>存入金额</label>
+                            <input type="number" id="depositAmount" placeholder="存入金额" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>利息金额</label>
+                            <input type="number" id="interestAmount" placeholder="利息金额" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>现有金额</label>
+                            <input type="number" id="currentAmount" placeholder="现有金额" step="0.01">
+                        </div>
+                    </div>
+                    <button id="addRecordBtn" class="btn-success">添加记录</button>
+                </div>
+                
+                <div class="section-card">
+                    <h3>资产记录</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>用户</th>
+                                <th>月份</th>
+                                <th>类别</th>
+                                <th>存入金额</th>
+                                <th>利息</th>
+                                <th>现有金额</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsTableBody">
+                            <tr><td colspan="7" style="text-align: center;">暂无记录</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="section-card">
+                    <h3>统计信息</h3>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <h4>存入合计</h4>
+                            <div id="monthlyDeposit">¥0.00</div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>利息合计</h4>
+                            <div id="monthlyInterest">¥0.00</div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>现有合计</h4>
+                            <div id="monthlyCurrent">¥0.00</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="section-card">
+                    <button id="exportExcelBtn" class="btn-success">导出Excel</button>
+                    <button id="importExcelBtn" class="btn-success" style="margin-left: 10px;">导入Excel</button>
+                    <input type="file" id="importExcelFile" accept=".xlsx, .xls" style="display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化数据
+            let users = JSON.parse(localStorage.getItem('financeUsers')) || [];
+            let currentUser = null;
+            let allRecords = JSON.parse(localStorage.getItem('financeAllRecords')) || {};
+            let selectedCategory = 'bank定期';
+            let selectedSubcategory = '建设银行';
+            
+            // DOM元素
+            const searchYearSelect = document.getElementById('searchYear');
+            const searchMonthSelect = document.getElementById('searchMonth');
+            const searchCategorySelect = document.getElementById('searchCategory');
+            const searchSubcategorySelect = document.getElementById('searchSubcategory');
+            const notification = document.getElementById('notification');
+            
+            // 设置当前月份
+            document.getElementById('recordMonth').value = new Date().toISOString().slice(0, 7);
+            
+            // 初始化用户下拉框
+            updateUserSelects();
+            
+            // 初始化搜索下拉框
+            updateSearchSelects();
+            
+            // 监听大类选择变化，更新小类选项
+            searchCategorySelect.addEventListener('change', updateSubcategoryOptions);
+            
+            // 添加用户功能
+            document.getElementById('addUserBtn').addEventListener('click', function() {
+                const userName = document.getElementById('userName').value.trim();
+                if (userName) {
+                    if (!users.includes(userName)) {
+                        users.push(userName);
+                        localStorage.setItem('financeUsers', JSON.stringify(users));
+                        updateUserSelects();
+                        document.getElementById('userName').value = '';
+                        showNotification('用户添加成功！');
+                    } else {
+                        showNotification('该用户名已存在！', 'error');
+                    }
+                } else {
+                    showNotification('请输入用户名！', 'error');
+                }
+            });
+            
+            // 切换用户
+            document.getElementById('switchUserBtn').addEventListener('click', function() {
+                const selectedUser = document.getElementById('userSelect').value;
+                if (selectedUser) {
+                    currentUser = selectedUser;
+                    document.getElementById('currentUserName').textContent = currentUser;
+                    displayRecords();
+                    showNotification(`已切换到用户: ${currentUser}`);
+                }
+            });
+            
+            // 类别选择
+            document.querySelectorAll('.subcategory-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('.subcategory-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    selectedCategory = this.getAttribute('data-category');
+                    selectedSubcategory = this.getAttribute('data-subcategory');
+                    document.getElementById('selectedCategory').textContent = selectedSubcategory;
+                    displayRecords();
+                });
+            });
+            
+            // 添加记录
+            document.getElementById('addRecordBtn').addEventListener('click', function() {
+                const user = document.getElementById('recordUser').value;
+                const month = document.getElementById('recordMonth').value;
+                const deposit = parseFloat(document.getElementById('depositAmount').value) || 0;
+                const interest = parseFloat(document.getElementById('interestAmount').value) || 0;
+                const current = parseFloat(document.getElementById('currentAmount').value) || 0;
+                
+                if (user && month) {
+                    const record = {
+                        id: Date.now(),
+                        user,
+                        month,
+                        category: selectedCategory,
+                        subcategory: selectedSubcategory,
+                        depositAmount: deposit,
+                        interest: interest,
+                        currentAmount: current
+                    };
+                    
+                    if (!allRecords[user]) allRecords[user] = [];
+                    allRecords[user].push(record);
+                    localStorage.setItem('financeAllRecords', JSON.stringify(allRecords));
+                    
+                    displayRecords();
+                    updateSearchSelects(); // 更新搜索选项
+                    // 清空表单
+                    document.getElementById('depositAmount').value = '';
+                    document.getElementById('interestAmount').value = '';
+                    document.getElementById('currentAmount').value = '';
+                    
+                    showNotification('记录添加成功！');
+                } else {
+                    showNotification('请选择用户和月份！', 'error');
+                }
+            });
+            
+            // 查找功能
+            document.getElementById('searchBtn').addEventListener('click', displayRecords);
+            document.getElementById('resetSearchBtn').addEventListener('click', function() {
+                document.getElementById('searchYear').value = '';
+                document.getElementById('searchMonth').value = '';
+                document.getElementById('searchCategory').value = '';
+                document.getElementById('searchSubcategory').value = '';
+                displayRecords();
+                showNotification('搜索条件已重置');
+            });
+            
+            // 导出Excel
+            document.getElementById('exportExcelBtn').addEventListener('click', function() {
+                if (Object.keys(allRecords).length === 0) {
+                    showNotification('没有数据可导出！', 'error');
+                    return;
+                }
+                
+                const excelData = [['用户', '月份', '大类', '小类', '存入金额', '利息金额', '现有金额']];
+                
+                for (const user in allRecords) {
+                    allRecords[user].forEach(record => {
+                        excelData.push([
+                            record.user,
+                            record.month,
+                            record.category,
+                            record.subcategory,
+                            record.depositAmount,
+                            record.interest,
+                            record.currentAmount
+                        ]);
+                    });
+                }
+                
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(excelData);
+                XLSX.utils.book_append_sheet(wb, ws, '资产明细');
+                XLSX.writeFile(wb, '资产明细.xlsx');
+                showNotification('Excel导出成功！');
+            });
+            
+            // 导入Excel
+            document.getElementById('importExcelBtn').addEventListener('click', function() {
+                document.getElementById('importExcelFile').click();
+            });
+            
+            document.getElementById('importExcelFile').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                        
+                        // 跳过标题行
+                        jsonData.shift();
+                        
+                        const importedRecords = {};
+                        jsonData.forEach(row => {
+                            if (row.length >= 7) {
+                                const user = row[0];
+                                if (!importedRecords[user]) importedRecords[user] = [];
+                                
+                                importedRecords[user].push({
+                                    id: Date.now() + Math.random(),
+                                    user: user,
+                                    month: row[1],
+                                    category: row[2],
+                                    subcategory: row[3],
+                                    depositAmount: parseFloat(row[4]) || 0,
+                                    interest: parseFloat(row[5]) || 0,
+                                    currentAmount: parseFloat(row[6]) || 0
+                                });
+                            }
+                        });
+                        
+                        // 合并数据
+                        for (const user in importedRecords) {
+                            if (!allRecords[user]) allRecords[user] = [];
+                            allRecords[user] = allRecords[user].concat(importedRecords[user]);
+                            
+                            // 添加新用户到用户列表
+                            if (!users.includes(user)) {
+                                users.push(user);
+                            }
+                        }
+                        
+                        localStorage.setItem('financeUsers', JSON.stringify(users));
+                        localStorage.setItem('financeAllRecords', JSON.stringify(allRecords));
+                        
+                        updateUserSelects();
+                        updateSearchSelects();
+                        displayRecords();
+                        
+                        showNotification('Excel导入成功！');
+                    } catch (error) {
+                        console.error('导入错误:', error);
+                        showNotification('导入失败，请检查文件格式', 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+                e.target.value = ''; // 重置文件输入
+            });
+            
+            function updateUserSelects() {
+                const userSelect = document.getElementById('userSelect');
+                const recordUser = document.getElementById('recordUser');
+                
+                userSelect.innerHTML = '';
+                recordUser.innerHTML = '<option value="">请选择用户</option>';
+                
+                users.forEach(user => {
+                    userSelect.innerHTML += `<option value="${user}">${user}</option>`;
+                    recordUser.innerHTML += `<option value="${user}">${user}</option>`;
+                });
+            }
+            
+            function updateSearchSelects() {
+                const years = new Set();
+                const months = new Set();
+                const subcategories = new Set();
+                
+                // 收集所有数据
+                for (const user in allRecords) {
+                    allRecords[user].forEach(record => {
+                        const year = record.month.split('-')[0];
+                        years.add(year);
+                        months.add(record.month);
+                        subcategories.add(record.subcategory);
+                    });
+                }
+                
+                // 更新年份下拉框
+                searchYearSelect.innerHTML = '<option value="">所有年份</option>';
+                Array.from(years).sort().reverse().forEach(year => {
+                    searchYearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+                });
+                
+                // 更新月份下拉框
+                searchMonthSelect.innerHTML = '<option value="">所有月份</option>';
+                Array.from(months).sort().reverse().forEach(month => {
+                    searchMonthSelect.innerHTML += `<option value="${month}">${month}</option>`;
+                });
+                
+                // 更新小类下拉框
+                updateSubcategoryOptions();
+            }
+            
+            function updateSubcategoryOptions() {
+                const selectedCategory = document.getElementById('searchCategory').value;
+                const subcategories = new Set();
+                
+                if (selectedCategory) {
+                    // 只显示选定大类的子类别
+                    for (const user in allRecords) {
+                        allRecords[user].forEach(record => {
+                            if (record.category === selectedCategory) {
+                                subcategories.add(record.subcategory);
+                            }
+                        });
+                    }
+                } else {
+                    // 显示所有子类别
+                    for (const user in allRecords) {
+                        allRecords[user].forEach(record => {
+                            subcategories.add(record.subcategory);
+                        });
+                    }
+                }
+                
+                searchSubcategorySelect.innerHTML = '<option value="">所有小类</option>';
+                Array.from(subcategories).sort().forEach(subcategory => {
+                    searchSubcategorySelect.innerHTML += `<option value="${subcategory}">${subcategory}</option>`;
+                });
+            }
+            
+            function displayRecords() {
+                const searchYear = document.getElementById('searchYear').value;
+                const searchMonth = document.getElementById('searchMonth').value;
+                const searchCategory = document.getElementById('searchCategory').value;
+                const searchSubcategory = document.getElementById('searchSubcategory').value;
+                
+                let filteredRecords = [];
+                let totalDeposit = 0, totalInterest = 0, totalCurrent = 0;
+                
+                for (const user in allRecords) {
+                    allRecords[user].forEach(record => {
+                        // 应用搜索条件
+                        if (searchYear && !record.month.startsWith(searchYear)) return;
+                        if (searchMonth && record.month !== searchMonth) return;
+                        if (searchCategory && record.category !== searchCategory) return;
+                        if (searchSubcategory && record.subcategory !== searchSubcategory) return;
+                        
+                        filteredRecords.push(record);
+                        totalDeposit += record.depositAmount;
+                        totalInterest += record.interest;
+                        totalCurrent += record.currentAmount;
+                    });
+                }
+                
+                // 显示记录
+                const tbody = document.getElementById('recordsTableBody');
+                tbody.innerHTML = '';
+                
+                if (filteredRecords.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">暂无记录</td></tr>';
+                } else {
+                    filteredRecords.forEach(record => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${record.user}</td>
+                            <td>${record.month}</td>
+                            <td>${record.subcategory}</td>
+                            <td>¥${record.depositAmount.toFixed(2)}</td>
+                            <td style="color: ${record.interest >= 0 ? 'green' : 'red'}">¥${record.interest.toFixed(2)}</td>
+                            <td>¥${record.currentAmount.toFixed(2)}</td>
+                            <td><button class="btn-danger" data-user="${record.user}" data-id="${record.id}">删除</button></td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    
+                    // 添加删除事件监听
+                    tbody.querySelectorAll('.btn-danger').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const userId = this.getAttribute('data-user');
+                            const id = parseInt(this.getAttribute('data-id'));
+                            deleteRecord(userId, id);
+                        });
+                    });
+                }
+                
+                // 更新统计
+                document.getElementById('monthlyDeposit').textContent = `¥${totalDeposit.toFixed(2)}`;
+                document.getElementById('monthlyInterest').textContent = `¥${totalInterest.toFixed(2)}`;
+                document.getElementById('monthlyCurrent').textContent = `¥${totalCurrent.toFixed(2)}`;
+            }
+            
+            function deleteRecord(userId, id) {
+                if (confirm('确定要删除这条记录吗？')) {
+                    allRecords[userId] = allRecords[userId].filter(record => record.id !== id);
+                    localStorage.setItem('financeAllRecords', JSON.stringify(allRecords));
+                    displayRecords();
+                    updateSearchSelects(); // 更新搜索选项
+                    showNotification('记录已删除');
+                }
+            }
+            
+            function showNotification(message, type = 'success') {
+                notification.textContent = message;
+                notification.style.background = type === 'success' ? 'var(--secondary)' : 'var(--danger)';
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+            
+            // 初始显示
+            updateSearchSelects();
+            displayRecords();
+        });
+    </script>
+</body>
+</html>
